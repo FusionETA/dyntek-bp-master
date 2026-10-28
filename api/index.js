@@ -66,7 +66,9 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
   // Opened as the app itself (app context, no deal) -> self-install / bind the tab.
-  if (domain === CONFIG.DOMAIN && auth && dealId === 0) {
+  // Bitrix does not send a DOMAIN field on the tab POST, so we don't require it;
+  // the token is the real auth and all REST calls target CONFIG.DOMAIN.
+  if (auth && dealId === 0) {
     const r = await bindTab(CONFIG.DOMAIN, auth, `https://${req.headers.host}/api/index`);
     const okb = !!r.data?.result;
     return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px">
@@ -75,19 +77,9 @@ ${okb ? '<p>✅ BP Master is set up. Open any deal to see the <b>BP Master</b> t
       : `<p>Setup ran but binding failed: ${esc(r.data?.error_description || r.data?.error || '')}</p>`}</body>`);
   }
 
-  const ok = (domain === CONFIG.DOMAIN && auth && dealId > 0);
+  const ok = (auth && dealId > 0);
   if (!ok) {
-    const dbg = {
-      method: req.method,
-      contentType: req.headers['content-type'] || '',
-      bodyType: typeof body,
-      bodyKeys: (body && typeof body === 'object') ? Object.keys(body) : [],
-      hasAuth: !!auth,
-      domain,
-      dealId,
-      hasPlacementOptions: !!po,
-    };
-    return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px"><p>Couldn't load the deal context.</p><pre style="background:#f5f6f8;padding:10px;border-radius:6px;overflow:auto">${esc(JSON.stringify(dbg, null, 2))}</pre></body>`);
+    return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px"><p>Couldn't load the deal context.</p></body>`);
   }
 
   const userId = await currentUserId(CONFIG.DOMAIN, auth);
