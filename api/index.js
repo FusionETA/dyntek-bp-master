@@ -77,7 +77,17 @@ ${okb ? '<p>✅ BP Master is set up. Open any deal to see the <b>BP Master</b> t
 
   const ok = (domain === CONFIG.DOMAIN && auth && dealId > 0);
   if (!ok) {
-    return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px"><p>Couldn't load the deal context.</p></body>`);
+    const dbg = {
+      method: req.method,
+      contentType: req.headers['content-type'] || '',
+      bodyType: typeof body,
+      bodyKeys: (body && typeof body === 'object') ? Object.keys(body) : [],
+      hasAuth: !!auth,
+      domain,
+      dealId,
+      hasPlacementOptions: !!po,
+    };
+    return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px"><p>Couldn't load the deal context.</p><pre style="background:#f5f6f8;padding:10px;border-radius:6px;overflow:auto">${esc(JSON.stringify(dbg, null, 2))}</pre></body>`);
   }
 
   const userId = await currentUserId(CONFIG.DOMAIN, auth);
