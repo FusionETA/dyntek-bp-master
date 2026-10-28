@@ -1,0 +1,10 @@
+{
+  "name": "dyntek-bp-master",
+  "version": "1.0.0",
+  "description": "BP Master — Bitrix24 deal-card app for the Business Partner fields (stage-locked editing).",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "qs": "^6.13.0"
+  }
+}
