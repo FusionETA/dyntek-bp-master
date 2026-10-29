@@ -48,6 +48,7 @@ export default async function handler(req, res) {
   const changes = []; // [label, from, to]
   for (const f of CONFIG.BP_FIELDS) {
     const { code, type } = f;
+    if (f.readOnly) continue; // auto-generated (e.g. BP Master Code) — never written here
 
     if (type === 'opportunity') {
       if (code in field) {

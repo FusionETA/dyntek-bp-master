@@ -13,9 +13,11 @@ function fileIds(raw) {
 }
 
 function renderField(f, deal, canEditNow) {
-  const dis = canEditNow ? '' : 'disabled';
+  // Auto-generated fields (e.g. BP Master Code) are never editable here.
+  const writable = canEditNow && !f.readOnly;
+  const dis = writable ? '' : 'disabled';
   const id = 'f_' + f.code.replace(/[^A-Za-z0-9_]/g, '');
-  const label = `<label for="${esc(id)}">${esc(f.label)}</label>`;
+  const label = `<label for="${esc(id)}">${esc(f.label)}${f.readOnly ? ' <span style="color:#9aa4b2">(auto)</span>' : ''}</label>`;
   const val = deal[f.code];
 
   switch (f.type) {
