@@ -47,6 +47,16 @@ export default async function handler(req, res) {
 
     const result = await assignCodes(CONFIG.DOMAIN, auth, deal);
     await dbg(`stage=${deal.STAGE_ID} cat=${deal.CATEGORY_ID} code=${JSON.stringify(deal[CONFIG.NUMBERING.DEAL_CODE_FIELD] || '')} -> ${JSON.stringify(result)}`);
+
+    // Probe: can the EVENT token read/write the registry list? (write is cleaned up)
+    if (DEBUG) {
+      const ib = CONFIG.NUMBERING.REGISTRY_IBLOCK_ID;
+      const pg = await b24call(CONFIG.DOMAIN, 'lists.element.get', { IBLOCK_TYPE_ID: 'lists', IBLOCK_ID: ib, select: ['ID'] }, auth);
+      const pa = await b24call(CONFIG.DOMAIN, 'lists.element.add', { IBLOCK_TYPE_ID: 'lists', IBLOCK_ID: ib, FIELDS: { NAME: 'PROBE', DETAIL_TEXT: 'probe' } }, auth);
+      if (pa.data?.result) await b24call(CONFIG.DOMAIN, 'lists.element.delete', { IBLOCK_TYPE_ID: 'lists', IBLOCK_ID: ib, ELEMENT_ID: pa.data.result }, auth);
+      await dbg('lists.get=' + JSON.stringify(pg.data?.error_description || pg.data?.error || ('ok rows=' + (pg.data?.result || []).length))
+        + ' | lists.add=' + JSON.stringify(pa.data?.result || pa.data?.error_description || pa.data?.error));
+    }
     return res.status(200).json({ ok: true, dealId, ...result });
   } catch (e) {
     await dbg('error: ' + String((e && e.message) || e));
