@@ -11,11 +11,17 @@ export default async function handler(req, res) {
   const body = await getBody(req);
   const auth = authFromBody(body);
 
-  // Deal id lives at data[FIELDS][ID] (urlencoded) — tolerate casing variants.
+  // Deal id lives at data[FIELDS][ID]. getBody normalizes the nested form, but
+  // tolerate the flat bracket key and casing variants too.
   let dealId = 0;
   const data = body.data || body.DATA || {};
   const fields = data.FIELDS || data.fields || {};
   dealId = parseInt(fields.ID || fields.id || 0, 10) || 0;
+  if (!dealId) {
+    dealId = parseInt(
+      body['data[FIELDS][ID]'] || body['DATA[FIELDS][ID]'] ||
+      body['data[FIELDS][id]'] || 0, 10) || 0;
+  }
 
   if (!auth || !dealId) return res.status(200).json({ ok: true, skipped: 'no auth or deal id' });
 
