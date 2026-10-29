@@ -93,6 +93,19 @@ ${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b
     return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px"><p>Couldn't load the deal context.</p></body>`);
   }
 
+  // Bind the auto-numbering event from here — the tab always runs with a valid
+  // OAuth (app-context) token, which CAN bind events (the webhook cannot). This
+  // self-heals the binding; event.bind is idempotent so repeated loads are safe.
+  try {
+    const er = await bindDealEvent(CONFIG.DOMAIN, auth, `https://${req.headers.host}/api/event`);
+    if (CONFIG.NUMBERING.DEBUG) {
+      await b24call(CONFIG.DOMAIN, 'crm.timeline.comment.add',
+        { fields: { ENTITY_ID: dealId, ENTITY_TYPE: 'deal',
+          COMMENT: '[BP BIND] ' + JSON.stringify(er.data?.result ?? (er.data?.error_description || er.data?.error || er.http)) } },
+        auth);
+    }
+  } catch { /* don't block the tab on a binding hiccup */ }
+
   const userId = await currentUserId(CONFIG.DOMAIN, auth);
   const dr = await b24call(CONFIG.DOMAIN, 'crm.deal.get', { id: dealId }, auth);
   const deal = dr.data?.result || {};
