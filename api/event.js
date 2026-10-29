@@ -2,6 +2,9 @@
 // no-ops unless the deal is at the "Confirm Purchase" trigger stage with a
 // blank code. Uses the per-event token Bitrix delivers (stateless — no stored
 // credentials). Always replies 200 so Bitrix does not retry-storm.
+//
+// DEBUG: while CONFIG.NUMBERING.DEBUG is true, every hit writes a "[BP DEBUG]"
+// timeline comment to the deal so we can see delivery + outcome from outside.
 import { CONFIG } from '../lib/config.js';
 import { b24call, getBody, authFromBody, assignCodes } from '../lib/b24.js';
 
@@ -23,17 +26,30 @@ export default async function handler(req, res) {
       body['data[FIELDS][id]'] || 0, 10) || 0;
   }
 
-  if (!auth || !dealId) return res.status(200).json({ ok: true, skipped: 'no auth or deal id' });
+  const DEBUG = !!CONFIG.NUMBERING.DEBUG;
+  const dbg = (msg) => (DEBUG && auth && dealId)
+    ? b24call(CONFIG.DOMAIN, 'crm.timeline.comment.add',
+        { fields: { ENTITY_ID: dealId, ENTITY_TYPE: 'deal', COMMENT: '[BP DEBUG] ' + msg } }, auth)
+        .then(() => {}).catch(() => {})
+    : Promise.resolve();
+
+  if (!auth || !dealId) {
+    return res.status(200).json({ ok: true, skipped: 'no auth or deal id', hasAuth: !!auth, dealId, keys: Object.keys(body) });
+  }
 
   try {
     const dr = await b24call(CONFIG.DOMAIN, 'crm.deal.get', { id: dealId }, auth);
     const deal = dr.data?.result;
-    if (!deal) return res.status(200).json({ ok: true, skipped: 'deal not readable' });
+    if (!deal) {
+      await dbg('deal.get failed: ' + JSON.stringify(dr.data?.error_description || dr.data?.error || dr.http));
+      return res.status(200).json({ ok: true, skipped: 'deal not readable' });
+    }
 
     const result = await assignCodes(CONFIG.DOMAIN, auth, deal);
+    await dbg(`stage=${deal.STAGE_ID} cat=${deal.CATEGORY_ID} code=${JSON.stringify(deal[CONFIG.NUMBERING.DEAL_CODE_FIELD] || '')} -> ${JSON.stringify(result)}`);
     return res.status(200).json({ ok: true, dealId, ...result });
   } catch (e) {
-    // Never fail hard — a thrown error would make Bitrix retry repeatedly.
+    await dbg('error: ' + String((e && e.message) || e));
     return res.status(200).json({ ok: false, dealId, error: String((e && e.message) || e) });
   }
 }
