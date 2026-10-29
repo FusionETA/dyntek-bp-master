@@ -1,7 +1,7 @@
 // BP Master — deal card tab (and self-install when opened as the app itself).
 // Read-only state here is UX only; the real lock is enforced in /api/save.
 import { CONFIG } from '../lib/config.js';
-import { b24call, getBody, authFromBody, currentUserId, canEdit, bindTab, esc } from '../lib/b24.js';
+import { b24call, getBody, authFromBody, currentUserId, canEdit, bindTab, bindDealEvent, esc } from '../lib/b24.js';
 
 function fileIds(raw) {
   const out = [];
@@ -69,12 +69,23 @@ export default async function handler(req, res) {
   // Bitrix does not send a DOMAIN field on the tab POST, so we don't require it;
   // the token is the real auth and all REST calls target CONFIG.DOMAIN.
   if (auth && dealId === 0) {
-    const r = await bindTab(CONFIG.DOMAIN, auth, `https://${req.headers.host}/api/index`);
+    const host = req.headers.host;
+    const r = await bindTab(CONFIG.DOMAIN, auth, `https://${host}/api/index`);
     const okb = !!r.data?.result;
-    return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px">
+    // Also bind the auto-numbering event here — this self-setup page is what the
+    // "Reinstall" button loads, so the event must bind from here too.
+    let okev = false, everr = '';
+    try {
+      const er = await bindDealEvent(CONFIG.DOMAIN, auth, `https://${host}/api/event`);
+      okev = !!er.data?.result;
+      everr = er.data?.error_description || er.data?.error || '';
+    } catch (e) { everr = String((e && e.message) || e); }
+    return res.status(200).send(`<!doctype html><meta charset="utf-8"><body style="font:14px -apple-system,Arial,sans-serif;padding:16px;line-height:1.5">
 <script src="//api.bitrix24.com/api/v1/"></script>
-${okb ? '<p>✅ BP Master is set up. Open any deal to see the <b>BP Master</b> tab.</p>'
-      : `<p>Setup ran but binding failed: ${esc(r.data?.error_description || r.data?.error || '')}</p>`}</body>`);
+${okb ? '<p>✅ BP Master tab is set up. Open any deal to see the <b>BP Master</b> tab.</p>'
+      : `<p>⚠ Tab binding failed: ${esc(r.data?.error_description || r.data?.error || '')}</p>`}
+${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b>Confirm Purchase</b>.</p>'
+       : `<p>⚠ Auto-numbering did not bind${everr ? ': ' + esc(everr) : ''}. Make sure the app has the <b>lists</b> scope, then reopen this.</p>`}</body>`);
   }
 
   const ok = (auth && dealId > 0);
