@@ -6,6 +6,14 @@ import { b24call, getBody, authFromBody, currentUserId, canEdit, bindTab, bindDe
 
 const idOf = (code) => 'f_' + String(code).replace(/[^A-Za-z0-9_]/g, '');
 
+// Currency <select> matching the native deal currency field.
+function curSelect(selected, attr, dis) {
+  const sel = String(selected || 'SGD');
+  const list = CONFIG.CURRENCIES.includes(sel) ? CONFIG.CURRENCIES : [sel, ...CONFIG.CURRENCIES];
+  const opts = list.map((c) => `<option ${c === sel ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  return `<select class="cur" ${attr} ${dis}>${opts}</select>`;
+}
+
 function fileIds(raw) {
   const out = [];
   for (const it of (Array.isArray(raw) ? raw : [])) {
@@ -46,16 +54,16 @@ function renderField(f, ctx, canEditNow) {
     case 'money': {
       const [amtRaw, curRaw] = String(val ?? '').split('|');
       const amt = amtRaw ? String(parseFloat(amtRaw)) : '';
-      const cur = curRaw || deal.CURRENCY_ID || 'MYR';
+      const cur = curRaw || deal.CURRENCY_ID || 'SGD';
       return `${label}<div class="money">
         <input id="${esc(id)}" data-code="${esc(f.code)}" value="${esc(amt)}" inputmode="decimal" ${dis}>
-        <input class="cur" data-cur="${esc(f.code)}" value="${esc(cur)}" maxlength="3" ${dis}></div>`;
+        ${curSelect(cur, `data-cur="${esc(f.code)}"`, dis)}</div>`;
     }
     case 'opportunity': {
       const amt = String(parseFloat(deal.OPPORTUNITY || 0));
       return `${label}<div class="money">
         <input id="${esc(id)}" data-code="${esc(f.code)}" value="${esc(amt)}" inputmode="decimal" ${dis}>
-        <input class="cur" data-currency="1" value="${esc(deal.CURRENCY_ID || 'MYR')}" maxlength="3" ${dis}></div>`;
+        ${curSelect(deal.CURRENCY_ID || 'SGD', 'data-currency="1"', dis)}</div>`;
     }
     case 'select': {
       const cur = String(val ?? '');
@@ -192,7 +200,7 @@ ${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b
   .req{color:#c62828;font-weight:700}.muted{color:#9aa4b2}
   input,textarea,select{width:100%;padding:8px 10px;border:1px solid var(--b);border-radius:6px;font:inherit;background:#fff}
   input:disabled,textarea:disabled,select:disabled{background:#f5f6f8;color:#5a6775}
-  textarea{min-height:52px;resize:vertical}.money{display:flex;gap:6px}.money .cur{max-width:84px;text-align:center}
+  textarea{min-height:52px;resize:vertical}.money{display:flex;gap:6px}.money .cur{max-width:96px;flex:0 0 auto}
   .files small{color:var(--muted)}
   .actions{margin-top:18px;display:flex;align-items:center;gap:12px;position:sticky;bottom:0;background:#fff;padding:10px 0}
   button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:9px 18px;font:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:default}
