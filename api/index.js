@@ -176,7 +176,7 @@ ${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b
       ${s.groups.map((g) => g.key === '_context'
         ? contextBanner(g.fields, ctx)
         : `<div class="group"><div class="gtitle">${esc(g.key)}</div>
-             <div class="grid">${g.fields.map((f) => fieldWrap(f, ctx, editable)).join('')}</div></div>`
+             <div class="grid">${g.fields.map((f) => (f.newRow ? '<div class="brk"></div>' : '') + fieldWrap(f, ctx, editable)).join('')}</div></div>`
       ).join('')}</section>`;
   }).join('');
 
@@ -193,6 +193,7 @@ ${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b
   .gtitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sec);margin-bottom:12px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px 16px}
   .field.full{grid-column:1/-1}
+  .brk{grid-column:1/-1;height:0;margin:0;padding:0}
   .ctx{display:flex;flex-wrap:wrap;gap:8px 24px;background:#fff;border:1px solid var(--b);border-left:4px solid var(--sec);border-radius:8px;padding:11px 16px;margin-bottom:12px}
   .ctx .chip{display:flex;flex-direction:column;min-width:130px}
   .ctx .chip span{font-size:11px;color:var(--muted)}.ctx .chip b{font-size:13px;color:#1b2733}
