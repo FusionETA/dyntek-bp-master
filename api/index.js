@@ -55,7 +55,7 @@ function renderField(f, ctx, canEditNow) {
       const amt = String(parseFloat(deal.OPPORTUNITY || 0));
       return `${label}<div class="money">
         <input id="${esc(id)}" data-code="${esc(f.code)}" value="${esc(amt)}" inputmode="decimal" ${dis}>
-        <input class="cur" value="${esc(deal.CURRENCY_ID || 'MYR')}" disabled></div>`;
+        <input class="cur" data-currency="1" value="${esc(deal.CURRENCY_ID || 'MYR')}" maxlength="3" ${dis}></div>`;
     }
     case 'select': {
       const cur = String(val ?? '');
@@ -155,14 +155,22 @@ ${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b
   }
   const ctx = { deal, companyTitle };
 
-  // Section -> titled sub-group cards (array order is authoritative).
-  const bodyHtml = buildSections(CONFIG.BP_FIELDS).map((s) => `
-    <h3 class="section">${esc(CONFIG.SECTION_LABELS[s.key] || s.key)}</h3>
-    ${s.groups.map((g) => g.key === '_context'
-      ? contextBanner(g.fields, ctx)
-      : `<div class="group"><div class="gtitle">${esc(g.key)}</div>
-           <div class="grid">${g.fields.map((f) => fieldWrap(f, ctx, editable)).join('')}</div></div>`
-    ).join('')}`).join('');
+  // Section -> titled sub-group cards (array order is authoritative). Each
+  // section gets its own accent colour so the two are easy to tell apart.
+  const SECTION_THEME = {
+    project: { sec: '#2066b0', bg: '#eef4fb' }, // blue
+    bp: { sec: '#6d49c9', bg: '#f4effc' },       // violet
+  };
+  const bodyHtml = buildSections(CONFIG.BP_FIELDS).map((s) => {
+    const t = SECTION_THEME[s.key] || SECTION_THEME.project;
+    return `<section class="sec" style="--sec:${t.sec};--secbg:${t.bg}">
+      <h3 class="section">${esc(CONFIG.SECTION_LABELS[s.key] || s.key)}</h3>
+      ${s.groups.map((g) => g.key === '_context'
+        ? contextBanner(g.fields, ctx)
+        : `<div class="group"><div class="gtitle">${esc(g.key)}</div>
+             <div class="grid">${g.fields.map((f) => fieldWrap(f, ctx, editable)).join('')}</div></div>`
+      ).join('')}</section>`;
+  }).join('');
 
   res.status(200).send(`<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>BP Master</title>
@@ -171,12 +179,13 @@ ${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b
   body{font:14px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1b2733;margin:0;padding:16px}
   .bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;position:sticky;top:0;background:#fff;padding:4px 0;z-index:2}
   .pill{font-size:12px;padding:3px 10px;border-radius:999px}.pill.edit{background:#e8f5e9;color:#2e7d32}.pill.lock{background:#fdecea;color:#c62828}
-  h3.section{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);margin:24px 0 12px}
-  .group{border:1px solid var(--b);border-radius:10px;padding:14px;margin-bottom:14px;background:#fff}
-  .gtitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a94a6;margin-bottom:12px}
+  .sec{background:var(--secbg);border-radius:12px;padding:4px 14px 14px;margin-bottom:20px}
+  h3.section{font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--sec);border-bottom:2px solid var(--sec);padding-bottom:6px;margin:16px 2px 14px}
+  .group{border:1px solid var(--b);border-left:4px solid var(--sec);border-radius:8px;padding:14px;margin-bottom:12px;background:#fff}
+  .gtitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--sec);margin-bottom:12px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px 16px}
   .field.full{grid-column:1/-1}
-  .ctx{display:flex;flex-wrap:wrap;gap:8px 24px;background:#f4f8fd;border:1px solid #e1e9f4;border-radius:10px;padding:11px 16px;margin-bottom:14px}
+  .ctx{display:flex;flex-wrap:wrap;gap:8px 24px;background:#fff;border:1px solid var(--b);border-left:4px solid var(--sec);border-radius:8px;padding:11px 16px;margin-bottom:12px}
   .ctx .chip{display:flex;flex-direction:column;min-width:130px}
   .ctx .chip span{font-size:11px;color:var(--muted)}.ctx .chip b{font-size:13px;color:#1b2733}
   label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
@@ -256,6 +265,7 @@ ${okev ? '<p>✅ Auto-numbering is active — codes assign when a deal enters <b
     var payload={auth:(BX24.getAuth()||{}).access_token||'',deal_id:DEAL_ID,field:{},cur:{},keep:{},newfile:{}};
     form.querySelectorAll('[data-code]').forEach(function(el){payload.field[el.getAttribute('data-code')]=el.value;});
     form.querySelectorAll('[data-cur]').forEach(function(el){payload.cur[el.getAttribute('data-cur')]=el.value;});
+    var cc=form.querySelector('[data-currency="1"]'); if(cc) payload.currency=cc.value;
     form.querySelectorAll('[data-keep]').forEach(function(el){var c=el.getAttribute('data-keep');(payload.keep[c]=payload.keep[c]||[]).push(el.value);});
     var fileInputs=form.querySelectorAll('input[type=file][data-filecode]');
     for(var i=0;i<fileInputs.length;i++){var c=fileInputs[i].getAttribute('data-filecode');for(var j=0;j<fileInputs[i].files.length;j++){var p=await readB64(fileInputs[i].files[j]);(payload.newfile[c]=payload.newfile[c]||[]).push(p);}}

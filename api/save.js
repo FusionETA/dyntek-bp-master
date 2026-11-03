@@ -26,6 +26,7 @@ export default async function handler(req, res) {
   const cur = body.cur || {};
   const keep = body.keep || {};
   const newf = body.newfile || {};
+  const currency = String(body.currency || '').trim().slice(0, 3).toUpperCase();
 
   if (!auth || !dealId) return res.status(400).json({ ok: false, error: 'Bad request' });
 
@@ -112,6 +113,12 @@ export default async function handler(req, res) {
         if (ov.trim() !== nv.trim()) { update[code] = nv; changes.push([f.label, ov || '(empty)', nv || '(empty)']); }
       }
     }
+  }
+
+  // Deal currency (Project Value currency) — editable from the opportunity field.
+  if (currency && currency !== String(deal.CURRENCY_ID || '')) {
+    update.CURRENCY_ID = currency;
+    changes.push(['Currency', deal.CURRENCY_ID || '(empty)', currency]);
   }
 
   // Derived (read-only): Cap Value = Project Value × Value Cap %.
