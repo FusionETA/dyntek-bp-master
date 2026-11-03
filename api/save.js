@@ -43,6 +43,23 @@ export default async function handler(req, res) {
   const allowed = CONFIG.ALWAYS_EDIT_USER_IDS.includes(me.id) || !locked;
   if (!allowed) return res.status(403).json({ ok: false, error: 'These fields are locked at this stage' });
 
+  // Conditional-required: when a Yes/No control is set to its trigger value, its
+  // dependent required sub-fields must be filled (mirrors the tab's client check).
+  const effSel = (code) => (code in field) ? String(field[code] ?? '') : String(deal[code] ?? '');
+  for (const f of CONFIG.BP_FIELDS) {
+    if (!f.showWhen || !f.required) continue;
+    if (effSel(f.showWhen.field) !== String(f.showWhen.is)) continue;
+    let empty;
+    if (f.type === 'file') {
+      const hasOld = (keep[f.code] || []).some((x) => x !== '' && x != null);
+      const hasNew = (newf[f.code] || []).length > 0;
+      empty = !hasOld && !hasNew;
+    } else {
+      empty = String(field[f.code] ?? '').trim() === '' && String(deal[f.code] ?? '').trim() === '';
+    }
+    if (empty) return res.status(400).json({ ok: false, error: `${f.label} is required` });
+  }
+
   // Write only the fields that actually changed, and record a human-readable diff.
   const update = {};
   const changes = []; // [label, from, to]
@@ -94,6 +111,23 @@ export default async function handler(req, res) {
         const ov = String(deal[code] ?? '');
         if (ov.trim() !== nv.trim()) { update[code] = nv; changes.push([f.label, ov || '(empty)', nv || '(empty)']); }
       }
+    }
+  }
+
+  // Derived (read-only): Cap Value = Project Value × Value Cap %.
+  {
+    const oppEff = ('OPPORTUNITY_WITH_CURRENCY' in field)
+      ? (parseFloat(num(field['OPPORTUNITY_WITH_CURRENCY'])) || 0)
+      : (parseFloat(deal.OPPORTUNITY || 0) || 0);
+    let vcapEff;
+    if ('UF_CRM_BP_VCAP' in field && String(field['UF_CRM_BP_VCAP']).trim() !== '') {
+      vcapEff = parseFloat(num(field['UF_CRM_BP_VCAP'])) || 0;
+    } else { const dv = parseFloat(deal.UF_CRM_BP_VCAP); vcapEff = (dv || dv === 0) ? dv : 85; }
+    const capVal = (oppEff && vcapEff) ? Math.round(oppEff * vcapEff / 100 * 100) / 100 : '';
+    const capOld = (deal.UF_CRM_BP_CAPVAL == null || deal.UF_CRM_BP_CAPVAL === '') ? '' : String(parseFloat(deal.UF_CRM_BP_CAPVAL));
+    if (String(capVal) !== capOld) {
+      update['UF_CRM_BP_CAPVAL'] = capVal === '' ? '' : capVal;
+      changes.push(['Cap Value', capOld || '(empty)', capVal === '' ? '(empty)' : String(capVal)]);
     }
   }
 
